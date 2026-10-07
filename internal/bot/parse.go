@@ -17,6 +17,7 @@ var (
 	tagRe   = regexp.MustCompile(`(?:^|\s)#([\p{L}\p{N}_-]+)`)
 	sepRe   = regexp.MustCompile(`\s+[-–—]\s+|\s*=\s*|\t`)
 	parenRe = regexp.MustCompile(`\([^)]*\)`)
+	starRe  = regexp.MustCompile(`\*([^*]+)\*`)
 )
 
 // parseEntry parses one line of the form "word - translation | note #group1 #group2".
@@ -44,15 +45,30 @@ func parseEntry(line string) (entry, bool) {
 
 // checkAnswer reports whether input matches expected or one of its variants
 // ("дом, здание; house/home"), ignoring case, ё/е, punctuation and "(…)" hints.
+// When expected marks the key part with asterisks ("he has *no beard*"), typing
+// just that part is enough; the whole phrase is accepted too.
 func checkAnswer(input, expected string) bool {
 	got := normalize(input)
 	if got == "" {
 		return false
 	}
-	variants := strings.FieldsFunc(expected, func(r rune) bool { return r == ',' || r == ';' || r == '/' })
-	for _, v := range append(variants, expected) {
-		if normalize(v) == got {
-			return true
+	answers := []string{strings.ReplaceAll(expected, "*", "")}
+	if marked := starRe.FindAllStringSubmatch(expected, -1); marked != nil {
+		var parts []string
+		for _, m := range marked {
+			parts = append(parts, m[1])
+		}
+		answers = append(answers, parts...)
+		if len(parts) > 1 {
+			answers = append(answers, strings.Join(parts, " "))
+		}
+	}
+	for _, a := range answers {
+		variants := strings.FieldsFunc(a, func(r rune) bool { return r == ',' || r == ';' || r == '/' })
+		for _, v := range append(variants, a) {
+			if normalize(v) == got {
+				return true
+			}
 		}
 	}
 	return false
