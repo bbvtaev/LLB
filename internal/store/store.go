@@ -142,7 +142,7 @@ func (s *Store) LanguageCounts(ctx context.Context) ([]Count, error) {
 		FROM words GROUP BY language ORDER BY language`))
 }
 
-// GroupCounts returns the groups that have words in language lang.
+// GroupCounts returns the groups that have words in language lang, oldest group first.
 func (s *Store) GroupCounts(ctx context.Context, lang string) ([]Count, error) {
 	return collectCounts(s.pool.Query(ctx, `
 		SELECT g.id, g.name, count(*) FILTER (WHERE w.due_at <= now()), count(*)
@@ -150,7 +150,7 @@ func (s *Store) GroupCounts(ctx context.Context, lang string) ([]Count, error) {
 		JOIN word_groups wg ON wg.group_id = g.id
 		JOIN words w ON w.id = wg.word_id
 		WHERE w.language = $1
-		GROUP BY g.id, g.name ORDER BY g.name`, lang))
+		GROUP BY g.id, g.name ORDER BY g.id`, lang))
 }
 
 // StatusCounts returns how many words of language lang are in each status.
